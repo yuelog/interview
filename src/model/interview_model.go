@@ -8,14 +8,16 @@ import (
 var tableName = "interview"
 
 type IssueStruct struct {
-	id        int
-	issue     string
-	answer    string
-	tips      string
-	knowledge string
+	Id        int
+	Issue     string
+	Answer    string
+	Tips      string
+	Knowledge string
 }
 
-func GetIssue(priority int, issueType string) []int {
+// TODO 用泛型实现查询不同字段时的兼容
+// TODO 看下别的sql库是怎么实现兼容查询不同字段的
+func GetIssueIds(priority int, issueType string) []int {
 	var condition1, condition2 string
 	condition1 = "priority > ?"
 	if priority > 0 {
@@ -24,7 +26,7 @@ func GetIssue(priority int, issueType string) []int {
 	if issueType != "" {
 		condition2 = " and type = ?"
 	}
-	sqlStr := "select id,issue from " + tableName + " where " + condition1 + condition2
+	sqlStr := "select id from " + tableName + " where " + condition1 + condition2
 	//fmt.Println(sqlStr)
 	//os.Exit(0)
 	stmt, err := master.Prepare(sqlStr)
@@ -47,8 +49,7 @@ func GetIssue(priority int, issueType string) []int {
 	ids := make([]int, 0)
 	for rows.Next() {
 		var id int
-		var issue string
-		if err := rows.Scan(&id, &issue); err != nil {
+		if err := rows.Scan(&id); err != nil {
 			glog.Errorln("查询mysql失败，err:", err)
 			return nil
 		}
@@ -68,7 +69,7 @@ func GetIssueById(id int) (*IssueStruct, error) {
 		return nil, queryErr
 	}
 	defer stmt.Close()
-	err := stmt.QueryRow(id).Scan(&issue.id, &issue.issue, &issue.answer, &issue.tips, &issue.knowledge)
+	err := stmt.QueryRow(id).Scan(&issue.Id, &issue.Issue, &issue.Answer, &issue.Tips, &issue.Knowledge)
 	if err != nil {
 		glog.Errorln("query failed,sql:", sqlStr1, ", err:%v\n", err)
 		return nil, err
@@ -89,4 +90,23 @@ func GetIssueById(id int) (*IssueStruct, error) {
 	}
 
 	return issue, nil
+}
+
+// 更新所有is_read为0
+func Reset() {
+	//更新该issue为已读
+	sqlStr := "Update " + tableName + " set is_read=0"
+	stmt, UpdateErr := master.Prepare(sqlStr)
+	if UpdateErr != nil {
+		glog.Errorln("exec sql failed, err:", UpdateErr)
+		return
+	}
+	defer stmt.Close()
+	_, err := stmt.Exec()
+	if err != nil {
+		glog.Errorln("update failed, err:", err)
+		return
+	}
+
+	return
 }
