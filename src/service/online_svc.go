@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 const MY_REDIS_NAME = "online_redis"
@@ -38,11 +39,6 @@ func Init() {
 		WriteTimeout:   config.OnlineWriteTimeout,
 	}
 	resource.RedisSetup(MY_REDIS_NAME, redisConfig)
-}
-
-type IssueStruct struct {
-	Id int `json:"id"`
-	//	Score int `json:"score"`
 }
 
 // 获取Redis中的面试题
@@ -120,16 +116,17 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	Retry:
 		//根据类型、优先级获得未读过的题目加载进redis（这样就考虑了redis数据过期的问题，只要不调用reset接口，就可以从上次的进度继续
 		issueIds := model.GetIssueIds(priority, issueType)
-		if issueIds == nil {
-			goto Retry
+		if len(issueIds) == 0 {
+			fmt.Fprintf(w, "<h1>题库已空，重新测验请先执行reset</h1>")
+			return
 		}
 		//实现"随机":打乱取出的id，分配score
 		rand.Shuffle(len(issueIds), func(i, j int) {
 			issueIds[i], issueIds[j] = issueIds[j], issueIds[i]
 		})
 		LoadDatasToRedis(issueIds, key)
-		//从redis中取出一条id，到mysql取出对应数据并更新mysql对应数据为已读(用事务)
-		//之所以使用Redis还要更新MySQL的状态，是为了保证一致性（比如隔一天但不想重置数据，此时只要将MySQL中未读数据装载进Redis即可）
+		//从redis中取出一条id，到mysql取出对应数据并更新mysql对应数据为已读
+		//之所以使用Redis还要更新MySQL的状态，是为了保证一致性（比如隔一天但不想重置数据，若redis数据过期，此时只要将MySQL中未读数据装载进Redis即可）
 		id, succ = GetIssueId(key)
 		if !succ {
 			goto Retry
@@ -142,7 +139,7 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	//一些数据拼接，比如answer拼接到html标签中
 	//fmt.Println(data)
-	fmt.Fprintf(w, "<h1>"+data.Issue+", "+data.Knowledge+"</h1>")
+	fmt.Fprintf(w, formatResult(data))
 }
 
 // Reset 重置:把所有数据都置为未读状态,并把数据加载到redis
@@ -166,4 +163,27 @@ func ResetHandler(w http.ResponseWriter, r *http.Request) {
 
 func genKey(priority string, issueType string) string {
 	return priority + "_" + issueType
+}
+
+func formatResult(data *model.IssueStruct) string {
+	start := "<html><body><h1>" + data.Issue + "</h1><br/>"
+	end := "</body></html>"
+	body := ""
+	body = formatBody(body, data.Tips, "提示")
+	body = formatBody(body, data.Knowledge, "知识点")
+	body = formatBody(body, data.Answer, "答案")
+
+	return start + body + end
+}
+
+func formatBody(body, datas, fieldName string) string {
+	if datas == "" {
+		return body
+	}
+	dataSlice := strings.Split(datas, ",")
+	for i, data := range dataSlice {
+		body += "<a href=" + data + " target=\"_blank\"> " + fieldName + strconv.Itoa(i+1) + "</a>&nbsp;&nbsp;&nbsp;&nbsp;"
+	}
+	body += "<br/><br/>"
+	return body
 }

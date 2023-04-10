@@ -26,7 +26,7 @@ func GetIssueIds(priority int, issueType string) []int {
 	if issueType != "" {
 		condition2 = " and type = ?"
 	}
-	sqlStr := "select id from " + tableName + " where " + condition1 + condition2
+	sqlStr := "select id from " + tableName + " where " + condition1 + condition2 + " and is_read = 0"
 	//fmt.Println(sqlStr)
 	//os.Exit(0)
 	stmt, err := master.Prepare(sqlStr)
