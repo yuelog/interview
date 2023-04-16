@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/golang/glog"
 	"github.com/gomodule/redigo/redis"
@@ -169,14 +170,14 @@ func formatResult(data *model.IssueStruct) string {
 	start := "<html><body><h1>" + data.Issue + "</h1><br/>"
 	end := "</body></html>"
 	body := ""
-	body = formatBody(body, data.Tips, "提示")
-	body = formatBody(body, data.Knowledge, "知识点")
-	body = formatBody(body, data.Answer, "答案")
+	body = formatAnswer(body, data.Answer, "答案")
+	body = formatBody(body, data.RelatedIssues, "相关问题")
+	body = formatBody(body, data.Knowledge, "相关知识点")
 
 	return start + body + end
 }
 
-func formatBody(body, datas, fieldName string) string {
+func formatAnswer(body, datas, fieldName string) string {
 	if datas == "" {
 		return body
 	}
@@ -186,4 +187,27 @@ func formatBody(body, datas, fieldName string) string {
 	}
 	body += "<br/><br/>"
 	return body
+}
+
+func formatBody(body, jsonData, fieldName string) string {
+	if jsonData == "" {
+		return body
+	}
+	var datas []string
+	err := json.Unmarshal([]byte(jsonData), &datas)
+	if err != nil {
+		glog.Errorln("Error:", err)
+		return ""
+	}
+	body += "<h2>" + fieldName + "</h2>"
+	for i, data := range datas {
+		body += "<p style='color:" + randColor(i) + "'>" + data + "</font>"
+	}
+	body += "<br/><br/>"
+	return body
+}
+
+func randColor(num int) string {
+	colorMap := map[int]string{0: "black", 1: "blue", 2: "red"}
+	return colorMap[(num+1)%len(colorMap)]
 }

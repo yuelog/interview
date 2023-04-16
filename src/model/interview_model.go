@@ -8,11 +8,12 @@ import (
 var tableName = "interview"
 
 type IssueStruct struct {
-	Id        int
-	Issue     string
-	Answer    string
-	Tips      string
-	Knowledge string
+	Id            int
+	Issue         string
+	Answer        string
+	RelatedIssues string
+	Knowledge     string
+	Tips          string
 }
 
 // TODO 用泛型实现查询不同字段时的兼容
@@ -62,14 +63,14 @@ func GetIssueIds(priority int, issueType string) []int {
 func GetIssueById(id int) (*IssueStruct, error) {
 	issue := &IssueStruct{}
 	//获取issue
-	sqlStr1 := "select id,issue,answer,tips,knowledge from " + tableName + " where id = ?"
+	sqlStr1 := "select id,issue,answer,related_issues,tips,knowledge from " + tableName + " where id = ?"
 	stmt, queryErr := master.Prepare(sqlStr1)
 	if queryErr != nil {
 		glog.Errorln("exec sql1 failed, err:", queryErr)
 		return nil, queryErr
 	}
 	defer stmt.Close()
-	err := stmt.QueryRow(id).Scan(&issue.Id, &issue.Issue, &issue.Answer, &issue.Tips, &issue.Knowledge)
+	err := stmt.QueryRow(id).Scan(&issue.Id, &issue.Issue, &issue.Answer, &issue.RelatedIssues, &issue.Tips, &issue.Knowledge)
 	if err != nil {
 		glog.Errorln("query failed,sql:", sqlStr1, ", err:%v\n", err)
 		return nil, err
