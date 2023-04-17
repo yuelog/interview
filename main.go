@@ -33,7 +33,7 @@ var (
 
 // 初始化各种需要用到的组件
 func init() {
-	flag.StringVar(&flagConfDir, "conf", "/Applications/go/interview/conf", "config file dir")
+	flag.StringVar(&flagConfDir, "conf", "./conf", "config file dir")
 	//初始化配置
 	initConfig()
 	//初始化mysql
