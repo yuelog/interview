@@ -167,12 +167,13 @@ func genKey(priority string, issueType string) string {
 }
 
 func formatResult(data *model.IssueStruct) string {
-	start := "<html><body><h1>" + data.Issue + "</h1><br/>"
+	start := "<html><head><meta charset=\"UTF-8\"><style>\n#fontset{font-size:3vw;}\n</style></head><body><h1>" + data.Issue + "</h1><br/>"
 	end := "</body></html>"
-	body := ""
+	body := "<div id=\"fontset\">"
 	body = formatAnswer(body, data.Answer, "答案")
 	body = formatBody(body, data.RelatedIssues, "相关问题")
 	body = formatBody(body, data.Knowledge, "相关知识点")
+	body += "</div>"
 
 	return start + body + end
 }
