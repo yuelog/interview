@@ -10,6 +10,7 @@ import (
 	"interview/src/model"
 	"math/rand"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -162,20 +163,59 @@ func ResetHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "<html><body><h1>Success!</h1></body></html>")
 }
 
+type completeStruct struct {
+	Id string `json:"id"`
+}
+
+// Complete 完成:每次记忆成功记录一次(保证全没错的情况下)
+func CompleteHandler(w http.ResponseWriter, r *http.Request) {
+	// 检查请求方法是否为POST
+	if r.Method != http.MethodPost {
+		http.Error(w, "只支持POST请求", http.StatusMethodNotAllowed)
+		return
+	}
+	decoder := json.NewDecoder(r.Body)
+	var issue completeStruct
+	err := decoder.Decode(&issue)
+	if err != nil {
+		glog.Errorln("decode error:", err)
+		return
+	}
+	//事务：把完成时间更新到interview表中，同时插入到complete_list表中
+	err = model.Complete(issue.Id)
+	//返回响应
+	response := map[string]string{
+		"message": "提交成功",
+	}
+	if err != nil {
+		response["message"] = err.Error()
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
 func genKey(priority string, issueType string) string {
 	return priority + "_" + issueType
 }
 
 func formatResult(data *model.IssueStruct) string {
-	start := "<html><head><meta charset=\"UTF-8\"><style>\n#fontset{font-size:3vw;}\n</style></head><body><h1>" + data.Issue + "</h1><br/>"
+	head, err := os.ReadFile("./conf/head.html")
+	if err != nil {
+		glog.Errorln("读取head失败")
+		return ""
+	}
+	start := "<html>" + string(head) + "<body><h1>" + data.Issue + "</h1><br/>"
 	end := "</body></html>"
 	body := "<div id=\"fontset\">"
 	body = formatAnswer(body, data.Answer, "答案")
 	body = formatBody(body, data.RelatedIssues, "相关问题")
 	body = formatBody(body, data.Knowledge, "相关知识点")
 	body += "</div>"
+	button := "<input type=\"button\" id=\"complete\" value=\"完成\"><input type=\"hidden\" id=\"issueId\" value=\"" + strconv.Itoa(data.Id) + "\" >" +
+		"<div id=\"result\"></div>"
 
-	return start + body + end
+	return start + body + button + end
 }
 
 func formatAnswer(body, datas, fieldName string) string {

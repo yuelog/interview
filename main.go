@@ -20,7 +20,9 @@ func main() {
 	//主要逻辑
 	http.HandleFunc("/", service.HomeHandler)
 	http.HandleFunc("/reset", service.ResetHandler)
-
+	http.HandleFunc("/complete", service.CompleteHandler)
+	//TODO 打印某道题的所有完成时间
+	
 	err := http.ListenAndServe(":8080", nil)
 	if err != nil {
 		panic(err)

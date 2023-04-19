@@ -3,6 +3,7 @@ package model
 import (
 	"database/sql"
 	"github.com/golang/glog"
+	"time"
 )
 
 var tableName = "interview"
@@ -110,4 +111,54 @@ func Reset() {
 	}
 
 	return
+}
+
+func Complete(id string) error {
+	tx, err := master.Begin()
+	if err != nil {
+		return err
+	}
+
+	// 准备更新表 interview
+	updateStmt, err := tx.Prepare("UPDATE interview SET last_complete = ? WHERE id = ?")
+	if err != nil {
+		// 回滚事务
+		tx.Rollback()
+		return err
+	}
+	defer updateStmt.Close()
+
+	// 执行更新语句
+	now := time.Now().Format("2006-01-02 15:04:05")
+	_, err = updateStmt.Exec(now, id)
+	if err != nil {
+		// 回滚事务
+		tx.Rollback()
+		return err
+	}
+
+	// 准备插入一条记录到表 complete_lisr 中
+	insertStmt, err := tx.Prepare("INSERT INTO complete_list (remark) VALUES (?)")
+	if err != nil {
+		// 回滚事务
+		tx.Rollback()
+		return err
+	}
+	defer insertStmt.Close()
+
+	// 执行插入语句
+	_, err = insertStmt.Exec("")
+	if err != nil {
+		// 回滚事务
+		tx.Rollback()
+		return err
+	}
+
+	// 提交事务
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
