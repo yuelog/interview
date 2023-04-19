@@ -139,9 +139,13 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
+	timelist, err := model.GetCompleteList(id)
+	if err != nil {
+		panic(err)
+	}
 	//一些数据拼接，比如answer拼接到html标签中
 	//fmt.Println(data)
-	fmt.Fprintf(w, formatResult(data))
+	fmt.Fprintf(w, formatResult(data, timelist))
 }
 
 // Reset 重置:把所有数据都置为未读状态,并把数据加载到redis
@@ -199,7 +203,7 @@ func genKey(priority string, issueType string) string {
 	return priority + "_" + issueType
 }
 
-func formatResult(data *model.IssueStruct) string {
+func formatResult(data *model.IssueStruct, timeList []string) string {
 	head, err := os.ReadFile("./conf/head.html")
 	if err != nil {
 		glog.Errorln("读取head失败")
@@ -215,7 +219,12 @@ func formatResult(data *model.IssueStruct) string {
 	button := "<input type=\"button\" id=\"complete\" value=\"完成\"><input type=\"hidden\" id=\"issueId\" value=\"" + strconv.Itoa(data.Id) + "\" >" +
 		"<div id=\"result\"></div>"
 
-	return start + body + button + end
+	timeP := ""
+	if len(timeList) > 0 {
+		timeP = "<p style=\"font-size:30px;color:orange\">最近三次完成时间:" + strings.Join(timeList, ",&nbsp;&nbsp;") + "</p>"
+	}
+
+	return start + timeP + body + button + end
 }
 
 func formatAnswer(body, datas, fieldName string) string {

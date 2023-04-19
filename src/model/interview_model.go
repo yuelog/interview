@@ -7,6 +7,7 @@ import (
 )
 
 var tableName = "interview"
+var completeTable = "complete_list"
 
 type IssueStruct struct {
 	Id            int
@@ -94,6 +95,38 @@ func GetIssueById(id int) (*IssueStruct, error) {
 	return issue, nil
 }
 
+func GetCompleteList(id int) ([]string, error) {
+	sqlStr := "select create_at from " + completeTable + " where interview_id = ? order by create_at desc limit 3"
+	stmt, queryErr := master.Prepare(sqlStr)
+	if queryErr != nil {
+		glog.Errorln("exec sql1 failed, err:", queryErr)
+		return nil, queryErr
+	}
+	defer stmt.Close()
+	rows, err := stmt.Query(id)
+	if err != nil {
+		glog.Errorln("query failed,sql:", sqlStr, ", err:%v\n", err)
+		return nil, err
+	}
+	defer rows.Close()
+	createAtList := make([]string, 0)
+	for rows.Next() {
+		var createAt string
+		if err := rows.Scan(&createAt); err != nil {
+			glog.Errorln("scan failed,err:", err)
+			return createAtList, err
+		}
+		outputTime, err := time.Parse(time.RFC3339, createAt)
+		if err != nil {
+			glog.Errorln("Parse time failed:", err)
+			return createAtList, err
+		}
+		//TODO 这里循环append会不会有性能问题，有没更好的方案 => 看看其他sql库怎么做的
+		createAtList = append(createAtList, outputTime.Format("2006-01-02 15:04:05"))
+	}
+	return createAtList, nil
+}
+
 // 更新所有is_read为0
 func Reset() {
 	//更新该issue为已读
@@ -138,7 +171,7 @@ func Complete(id string) error {
 	}
 
 	// 准备插入一条记录到表 complete_lisr 中
-	insertStmt, err := tx.Prepare("INSERT INTO complete_list (remark) VALUES (?)")
+	insertStmt, err := tx.Prepare("INSERT INTO complete_list (interview_id) VALUES (?)")
 	if err != nil {
 		// 回滚事务
 		tx.Rollback()
@@ -147,7 +180,7 @@ func Complete(id string) error {
 	defer insertStmt.Close()
 
 	// 执行插入语句
-	_, err = insertStmt.Exec("")
+	_, err = insertStmt.Exec(id)
 	if err != nil {
 		// 回滚事务
 		tx.Rollback()
