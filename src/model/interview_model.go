@@ -100,7 +100,7 @@ func GetCompleteList(id int) ([]string, error) {
 	sqlStr := "select create_at from " + completeTable + " where interview_id = ? order by create_at desc limit 3"
 	stmt, queryErr := master.Prepare(sqlStr)
 	if queryErr != nil {
-		glog.Errorln("exec sql1 failed, err:", queryErr)
+		glog.Errorln("exec sql failed, err:", queryErr)
 		return nil, queryErr
 	}
 	defer stmt.Close()
@@ -112,18 +112,18 @@ func GetCompleteList(id int) ([]string, error) {
 	defer rows.Close()
 	createAtList := make([]string, 0)
 	for rows.Next() {
-		var createAt string
+		var createAt int64
 		if err := rows.Scan(&createAt); err != nil {
 			glog.Errorln("scan failed,err:", err)
 			return createAtList, err
 		}
-		outputTime, err := time.Parse(time.RFC3339, createAt)
+		outputTime := time.Unix(createAt, 0).Format("2006-01-02 15:04:05")
 		if err != nil {
 			glog.Errorln("Parse time failed:", err)
 			return createAtList, err
 		}
 		//TODO 这里循环append会不会有性能问题，有没更好的方案 => 看看其他sql库怎么做的
-		createAtList = append(createAtList, outputTime.Format("2006-01-02 15:04:05"))
+		createAtList = append(createAtList, outputTime)
 	}
 	return createAtList, nil
 }
@@ -147,7 +147,38 @@ func Reset() {
 	return
 }
 
+type CompleteError struct {
+	err string
+}
+
+func (e CompleteError) Error() string {
+	return e.err
+}
+
+func setCompleteError() error {
+	return CompleteError{err: "最近刚提交过，无需重复提交"}
+}
+
 func Complete(id string) error {
+	sqlStr := "select last_complete from " + tableName + " where id =?"
+	selectStmt, err := master.Prepare(sqlStr)
+	if err != nil {
+		glog.Errorln("complete select prepare failed, err:", err)
+		return err
+	}
+	defer selectStmt.Close()
+	var lastComplete int64
+	err = selectStmt.QueryRow(id).Scan(&lastComplete)
+	if err != nil {
+		glog.Errorln("query failed,sql:", sqlStr, ", err:%v\n", err)
+		return err
+	}
+	now := time.Now().Unix()
+	if (now - lastComplete) < 3600 {
+		err := setCompleteError()
+		return err
+	}
+
 	tx, err := master.Begin()
 	if err != nil {
 		return err
@@ -163,7 +194,6 @@ func Complete(id string) error {
 	defer updateStmt.Close()
 
 	// 执行更新语句
-	now := time.Now().Format("2006-01-02 15:04:05")
 	_, err = updateStmt.Exec(now, id)
 	if err != nil {
 		// 回滚事务
@@ -172,7 +202,7 @@ func Complete(id string) error {
 	}
 
 	// 准备插入一条记录到表 complete_lisr 中
-	insertStmt, err := tx.Prepare("INSERT INTO complete_list (interview_id) VALUES (?)")
+	insertStmt, err := tx.Prepare("INSERT INTO complete_list (interview_id,create_at) VALUES (?,?)")
 	if err != nil {
 		// 回滚事务
 		tx.Rollback()
@@ -181,7 +211,7 @@ func Complete(id string) error {
 	defer insertStmt.Close()
 
 	// 执行插入语句
-	_, err = insertStmt.Exec(id)
+	_, err = insertStmt.Exec(id, now)
 	if err != nil {
 		// 回滚事务
 		tx.Rollback()
