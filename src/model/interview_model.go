@@ -3,6 +3,7 @@ package model
 import (
 	"database/sql"
 	"github.com/golang/glog"
+	"strconv"
 	"time"
 )
 
@@ -190,6 +191,25 @@ func Complete(id string) error {
 	// 提交事务
 	err = tx.Commit()
 	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func InsertData(issueStruct *IssueStruct, issueType string, priority int) error {
+	sqlStr := "insert into " + tableName + "(issue, tips, answer, related_issues, knowledge, type, priority) values" +
+		"('" + issueStruct.Issue + "', '" + issueStruct.Tips + "', '" + issueStruct.Answer + "', '" + issueStruct.RelatedIssues +
+		"', '" + issueStruct.Knowledge + "', '" + issueType + "'," + strconv.Itoa(priority) + ")"
+	stmt, err := master.Prepare(sqlStr)
+	if err != nil {
+		glog.Errorln("insert prepare error, err:", err)
+		return err
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec()
+	if err != nil {
+		glog.Errorln("insert failed, err:", err)
 		return err
 	}
 
