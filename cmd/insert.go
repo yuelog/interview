@@ -11,6 +11,8 @@ import (
 	"strings"
 )
 
+//go run insert.go -priority=1 -issue="聊聊锁，分类，作用？" -answer="https://gitee.com/roggeYue/interview/blob/master/src/mysql/聊聊锁，分类，作用.md" -type="MySQL" -knowledge="" -related_issue=""
+
 var issueStruct model.IssueStruct
 
 func main() {
