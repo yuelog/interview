@@ -94,12 +94,30 @@ func ClearRedis(key string) {
 	return
 }
 
+func ListHandler(w http.ResponseWriter, r *http.Request) {
+	if r.URL.RequestURI() == "/favicon.ico" {
+		return
+	}
+	str := "<a href='/?type=Docker'><h1>Docker</h1></a><br>"
+	str += "<a href='/?type=Kafka'><h1>Kafka</h1></a><br>"
+	str += "<a href='/?type=MySQL'><h1>MySQL</h1></a><br>"
+	str += "<a href='/?type=Network'><h1>NetWork</h1></a><br>"
+	str += "<a href='/?type=Nginx'><h1>Nginx</h1></a><br>"
+	str += "<a href='/?type=Os'><h1>操作系统</h1></a><br>"
+	str += "<a href='/?type=php'><h1>PHP</h1></a><br>"
+	str += "<a href='/?type=prodesign'><h1>系统设计</h1></a><br>"
+	str += "<a href='/?type=Redis'><h1>Redis</h1></a><br>"
+	str += "<a href='/?type=Thinkphp'><h1>ThinkPHP</h1></a><br>"
+	fmt.Fprintf(w, str)
+}
+
 // 输入:类型、优先级
 // 输出：满足条件 且 未读 的题目一条
 func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.RequestURI() == "/favicon.ico" {
 		return
 	}
+	host := fmt.Sprintf("%v\n", r.Host)
 	pri := r.URL.Query().Get("pri")
 	issueType := r.URL.Query().Get("type")
 	if pri == "" {
@@ -142,6 +160,10 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	timelist, err := model.GetCompleteList(id)
 	if err != nil {
 		panic(err)
+	}
+	//如果是本地，替换为本地文件路径
+	if strings.Contains(host, "localhost") {
+		data.Answer = strings.Replace(data.Answer, "https://gitee.com/roggeYue/interview/blob/master", "file:///Applications/go/interview/md/", 1)
 	}
 	//一些数据拼接，比如answer拼接到html标签中
 	//fmt.Println(data)

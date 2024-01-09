@@ -21,8 +21,11 @@ func main() {
 	http.HandleFunc("/", service.HomeHandler)
 	http.HandleFunc("/reset", service.ResetHandler)
 	http.HandleFunc("/complete", service.CompleteHandler)
+	//列出有哪些页面
+	http.HandleFunc("/list", service.ListHandler)
+
 	//TODO 打印某道题的所有完成时间
-	
+
 	err := http.ListenAndServe(":8080", nil)
 	if err != nil {
 		panic(err)
